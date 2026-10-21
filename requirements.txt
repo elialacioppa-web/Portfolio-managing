@@ -4,3 +4,5 @@ pandas
 numpy
 plotly
 openpyxl
+quantstats
+scipy

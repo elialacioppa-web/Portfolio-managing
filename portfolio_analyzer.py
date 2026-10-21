@@ -364,4 +364,41 @@ with tab4:
         cols = st.columns(min(4, len(found)))
         for i, t in enumerate(found):
             with cols[i % 4]:
-                curr = float(port.loc[port["Ticker"] == t, "Peso
+                curr = float(port.loc[port["Ticker"] == t, "Peso %"].iloc[0])
+                targets[t] = st.number_input(t, 0.0, 100.0, float(curr), 0.5, key=f"t{t}")
+        if abs(sum(targets.values()) - 100) < 2:
+            data = []
+            for t in found:
+                curr = float(port.loc[port["Ticker"] == t, "Peso %"].iloc[0])
+                diff = targets[t] - curr
+                data.append({"Ticker": t, "Attuale %": curr, "Target %": targets[t], "Diff %": diff, "€": diff/100*total_value})
+            st.dataframe(pd.DataFrame(data).style.format({"Attuale %": "{:.1f}", "Target %": "{:.1f}", "Diff %": "{:+.1f}", "€": "€{:+,.0f}"}))
+
+with tab5:
+    st.subheader("Report PDF")
+    if st.button("Genera PDF", type="primary"):
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm)
+        styles = getSampleStyleSheet()
+        elements = []
+        elements.append(Paragraph("Portfolio Analyzer Pro – Report", styles["Title"]))
+        elements.append(Paragraph(f"Cliente: {client_name} | Data: {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]))
+        elements.append(Paragraph(f"Valore portafoglio: € {total_value:,.0f}", styles["Normal"]))
+        elements.append(Spacer(1, 12))
+        
+        table_data = [["Ticker", "Nome", "Settore", "Valore €", "Peso %"]]
+        for _, r in port.iterrows():
+            table_data.append([r["Ticker"], str(r["Nome"])[:25], str(r["Settore"])[:18], f"{r['Valore']:,.0f}", f"{r['Peso %']:.1f}"])
+        t = Table(table_data, colWidths=[2.3*cm, 5*cm, 3.8*cm, 2.8*cm, 2*cm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1e3a5f")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTSIZE", (0,0), (-1,-1), 8),
+            ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
+        ]))
+        elements.append(t)
+        doc.build(elements)
+        buffer.seek(0)
+        st.download_button("Scarica PDF", buffer, f"Report_{client_name.replace(' ','_')}.pdf", "application/pdf")
+
+st.caption(f"Portfolio Analyzer Pro • {client_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')} • Dati Yahoo Finance")
